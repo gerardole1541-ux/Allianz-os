@@ -361,7 +361,7 @@ const MOTIVATION = {
 
 // PEGA AQUÍ la URL que termina en /exec después de implementar tu Apps Script.
 // Ejemplo: "https://script.google.com/macros/s/AKfycb.../exec"
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4uh3RO4DAfbMjAqszdC39KnhKG-n5NlCxiCd29SAC_0IY9fdpvHH5_isqA8dWZsip/exec";
+const APPS_SCRIPT_URL = "PON_AQUI_TU_URL_DE_APPS_SCRIPT";
 
 const STORAGE_OK = APPS_SCRIPT_URL.indexOf("https://") === 0;
 
@@ -425,6 +425,11 @@ async function loadDay(dateStr){
   return rec;
 }
 async function saveDay(rec){ await sSet("day:"+rec.date, rec); }
+let daySaveTimer=null;
+function scheduleDaySave(rec){
+  clearTimeout(daySaveTimer);
+  daySaveTimer = setTimeout(()=>{ saveDay(rec); }, 500);
+}
 
 let toastTimer=null;
 function showToast(msg){
@@ -492,26 +497,26 @@ function renderTaskList(rec){
           '<button class="ctr-btn sm plus">+</button>'+
         '</div>';
       li.querySelector(".checkbox").innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-      li.querySelector(".checkbox").addEventListener("click", async ()=>{
+      li.querySelector(".checkbox").addEventListener("click", ()=>{
         rec.counters[t.metricKey] = done ? 0 : t.target;
-        await saveDay(rec); await renderHoy(); renderRing();
+        renderHoy(); renderRing(); scheduleDaySave(rec);
       });
-      li.querySelector(".plus").addEventListener("click", async ()=>{
+      li.querySelector(".plus").addEventListener("click", ()=>{
         rec.counters[t.metricKey] = (rec.counters[t.metricKey]||0) + 1;
-        await saveDay(rec); await renderHoy(); renderRing();
+        renderHoy(); renderRing(); scheduleDaySave(rec);
       });
-      li.querySelector(".minus").addEventListener("click", async ()=>{
+      li.querySelector(".minus").addEventListener("click", ()=>{
         if((rec.counters[t.metricKey]||0) > 0){
           rec.counters[t.metricKey]--;
-          await saveDay(rec); await renderHoy(); renderRing();
+          renderHoy(); renderRing(); scheduleDaySave(rec);
         }
       });
     } else {
       li.className = "task-item"+(done?" done":"");
       li.innerHTML = '<div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div class="task-text">'+escapeHtml(t.label)+'</div>';
-      li.addEventListener("click", async ()=>{
+      li.addEventListener("click", ()=>{
         rec.tasks[t.key] = !rec.tasks[t.key];
-        await saveDay(rec); await renderHoy(); renderRing();
+        renderHoy(); renderRing(); scheduleDaySave(rec);
       });
     }
     ul.appendChild(li);
@@ -541,11 +546,11 @@ function renderRegistro(rec){
         '<div class="ctr-value">'+rec.counters[m.key]+'</div>'+
         '<button class="ctr-btn plus">+</button>'+
       '</div>';
-    row.querySelector(".plus").addEventListener("click", async ()=>{
-      rec.counters[m.key]++; await saveDay(rec); await renderHoy(); renderRing();
+    row.querySelector(".plus").addEventListener("click", ()=>{
+      rec.counters[m.key]++; renderHoy(); renderRing(); scheduleDaySave(rec);
     });
-    row.querySelector(".minus").addEventListener("click", async ()=>{
-      if(rec.counters[m.key]>0){ rec.counters[m.key]--; await saveDay(rec); await renderHoy(); renderRing(); }
+    row.querySelector(".minus").addEventListener("click", ()=>{
+      if(rec.counters[m.key]>0){ rec.counters[m.key]--; renderHoy(); renderRing(); scheduleDaySave(rec); }
     });
     cl.appendChild(row);
   });
@@ -584,8 +589,8 @@ function renderAgenda(){
       item.innerHTML =
         '<div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'+
         '<div class="agenda-main"><div class="agenda-text">'+escapeHtml(p.text)+'</div><div class="agenda-date">Programado para hoy</div></div>';
-      item.querySelector(".checkbox").addEventListener("click", async ()=>{
-        p.done = true; await savePendientes(); await renderHoy(); showToast("Pendiente completado");
+      item.querySelector(".checkbox").addEventListener("click", ()=>{
+        p.done = true; updatePendBadge(); renderHoy(); showToast("Pendiente completado"); schedulePendSave();
       });
       card.appendChild(item);
     });
@@ -811,6 +816,11 @@ async function drawTrendChart(){
 
 async function loadPendientes(){ const list = await sGet("pendientes"); return Array.isArray(list) ? list : []; }
 async function savePendientes(){ await sSet("pendientes", state.pendientes); updatePendBadge(); }
+let pendSaveTimer=null;
+function schedulePendSave(){
+  clearTimeout(pendSaveTimer);
+  pendSaveTimer = setTimeout(()=>{ savePendientes(); }, 500);
+}
 function updatePendBadge(){
   const openCount = state.pendientes.filter(p=>!p.done).length;
   const badge = document.getElementById("pendBadge");
@@ -848,19 +858,19 @@ function renderPendientes(){
         '<button class="icon-btn del" title="Eliminar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>'+
       '</div>';
 
-    row.querySelector(".checkbox").addEventListener("click", async ()=>{ p.done = !p.done; await savePendientes(); renderPendientes(); await renderHoy(); });
+    row.querySelector(".checkbox").addEventListener("click", ()=>{ p.done = !p.done; updatePendBadge(); renderPendientes(); renderHoy(); schedulePendSave(); });
     row.querySelector(".edit").addEventListener("click", ()=>{
       const textDiv = row.querySelector(".pend-text");
       const input = document.createElement("input");
       input.className = "pend-text-input"; input.value = p.text;
       textDiv.replaceWith(input); input.focus(); input.select();
-      const commit = async ()=>{ const v = input.value.trim(); if(v) p.text = v; await savePendientes(); renderPendientes(); await renderHoy(); };
+      const commit = ()=>{ const v = input.value.trim(); if(v) p.text = v; renderPendientes(); renderHoy(); schedulePendSave(); };
       input.addEventListener("blur", commit);
       input.addEventListener("keydown", e=>{ if(e.key==="Enter") input.blur(); });
     });
-    row.querySelector(".del").addEventListener("click", async ()=>{
+    row.querySelector(".del").addEventListener("click", ()=>{
       state.pendientes = state.pendientes.filter(x=>x.id!==p.id);
-      await savePendientes(); renderPendientes(); await renderHoy();
+      updatePendBadge(); renderPendientes(); renderHoy(); schedulePendSave();
       showToast("Pendiente eliminado");
     });
     wrap.appendChild(row);
@@ -883,9 +893,10 @@ async function addPendiente(){
   const reminderLeadDays = (scheduledDate && pendReminderEl.value) ? parseInt(pendReminderEl.value,10) : null;
   state.pendientes.push({ id: Date.now()+"_"+Math.random().toString(36).slice(2,7), text, done:false, createdAt: new Date().toISOString(), scheduledDate, reminderLeadDays });
   input.value = ""; pendDateEl.value = ""; pendReminderEl.value = ""; pendReminderEl.disabled = true;
-  await savePendientes();
+  updatePendBadge();
   renderPendientes();
-  await renderHoy();
+  renderHoy();
+  await savePendientes();
 }
 
 async function renderHistorial(){
@@ -963,6 +974,15 @@ goalInputEl.addEventListener("input", ()=>{
 });
 
 window.addEventListener("scroll", ()=> document.getElementById("topbar").classList.toggle("scrolled", window.scrollY>4));
+
+/* Si el usuario cierra o cambia de app justo después de tocar algo,
+   forzamos el guardado inmediato en vez de esperar el debounce. */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "hidden"){
+    if(daySaveTimer){ clearTimeout(daySaveTimer); saveDay(state.today); }
+    if(pendSaveTimer){ clearTimeout(pendSaveTimer); savePendientes(); }
+  }
+});
 
 async function init(){
   if(!STORAGE_OK){ showToast("Configura APPS_SCRIPT_URL en el código para guardar tus datos."); }
