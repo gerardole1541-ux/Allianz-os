@@ -110,6 +110,27 @@ body{ background:var(--bg); color:var(--ink); font-family:var(--font-ui); -webki
 .counter-sub{ font-size:11px; color:var(--ink-faint); font-family:var(--font-mono); }
 .counter-controls{ display:flex; align-items:center; gap:10px; }
 
+.criteria-toggle{
+  margin-left:auto; background:var(--accent-soft); color:var(--accent-deep); border:none;
+  border-radius:99px; padding:5px 11px; font-size:11px; font-weight:700; cursor:pointer;
+  text-transform:none; letter-spacing:0;
+}
+.criteria-toggle:active{ background:var(--accent); color:#fff; }
+.criteria-panel{ padding:14px 15px; margin-bottom:14px; }
+.criteria-block{ margin-bottom:16px; }
+.criteria-block:last-child{ margin-bottom:0; }
+.criteria-title{ font-size:14px; font-weight:800; color:var(--ink); margin-bottom:8px; }
+.criteria-col-label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin:8px 0 5px; }
+.criteria-col-label.yes{ color:var(--good); }
+.criteria-col-label.no{ color:var(--danger); }
+.criteria-list{ margin:0; padding-left:18px; }
+.criteria-list li{ font-size:13px; color:var(--ink-soft); margin-bottom:3px; line-height:1.35; }
+
+.commitment-row{ display:flex; align-items:center; gap:12px; padding:12px 10px; border-bottom:1px solid var(--line); cursor:pointer; user-select:none; }
+.commitment-row:last-child{ border-bottom:none; }
+.commitment-row.done .commitment-text{ color:var(--ink-faint); text-decoration:line-through; }
+.commitment-text{ font-size:14px; font-weight:500; color:var(--ink); flex:1; }
+
 .goal-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:14px 15px; margin-bottom:10px; box-shadow:var(--shadow); }
 .goal-card-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
 .goal-name{ font-size:14px; font-weight:700; color:var(--ink); }
@@ -235,8 +256,15 @@ canvas{ width:100%; display:block; }
 
   <!-- ===================== METAS ===================== -->
   <section class="view" id="view-metas">
-    <div class="section-title">Metas de la semana</div>
+    <div class="section-title">
+      <span>Metas de la semana</span>
+      <button class="criteria-toggle" id="criteriaToggle">⋯ Criterios</button>
+    </div>
+    <div class="card criteria-panel" id="criteriaPanel" style="display:none"></div>
     <div id="goalsList"></div>
+
+    <div class="section-title">Compromisos de la semana</div>
+    <div class="card" id="commitmentsList"></div>
   </section>
 
   <!-- ===================== DASHBOARD ===================== -->
@@ -327,8 +355,8 @@ const METRICS = [
   {key:"asesorias",        label:"Asesorías agendadas",        goal:5},
   {key:"videosGrabados",   label:"Videos grabados",            goal:5},
   {key:"videosEditados",   label:"Videos editados",            goal:5},
-  {key:"videosPublicados", label:"Videos publicados",          goal:3},
-  {key:"referidos",        label:"Referidos pedidos",          goal:5}
+  {key:"videosPublicados", label:"Videos publicados",          goal:2},
+  {key:"referidos",        label:"Referidos pedidos",          goal:3}
 ];
 const METRIC_BY_KEY = {}; METRICS.forEach(m=>METRIC_BY_KEY[m.key]=m);
 
@@ -336,13 +364,20 @@ function T(label, metricKey, target){ return {label, metricKey, target}; }
 function S(label){ return {label, metricKey:null, target:null}; }
 
 const WEEKDAY_TASKS_RAW = [
-  [ T("Publicar video","videosPublicados",1), S("Publicar historias"), T("5 seguimientos","seguimientos",5), S("Confirmar citas"), T("Editar video","videosEditados",1), T("Buscar conversaciones financieras","conversaciones",1) ],
-  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("5 llamadas","llamadas",5), T("Grabar 5 videos","videosGrabados",5), T("Asesorías","asesorias",1), T("Editar video","videosEditados",1), T("Conversaciones financieras","conversaciones",1) ],
-  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("5 llamadas","llamadas",5), T("Asesorías","asesorias",1), T("Editar video","videosEditados",1), T("Conversaciones financieras","conversaciones",1) ],
-  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("5 llamadas","llamadas",5), T("Asesorías","asesorias",1), T("Publicar video","videosPublicados",1), S("Enviar propuestas"), T("Conversaciones financieras","conversaciones",1) ],
-  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("Pedir referidos","referidos",1), S("Revisar pendientes"), T("Dejar editados los 5 videos de la siguiente semana","videosEditados",5), S("Historias"), T("Conversaciones financieras","conversaciones",1) ],
-  [ T("Asesorías","asesorias",1), S("Prospectar si surge oportunidad"), T("Conversaciones financieras","conversaciones",1) ],
-  [ S("Revisar métricas"), S("Planear la semana"), S("Organizar agenda"), S("Programar publicaciones") ]
+  // Lunes — Preparación de la semana
+  [ T("Publicar 1 video","videosPublicados",1), S("Publicar historias"), T("5 seguimientos","seguimientos",5), S("Confirmar todas las citas de martes a viernes"), T("Editar 1 video","videosEditados",1), T("Buscar 1 conversación financiera","conversaciones",1) ],
+  // Martes — Día fuerte de prospección
+  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("5 llamadas","llamadas",5), T("Grabar 5 videos","videosGrabados",5), T("Asesorías agendadas","asesorias",1), T("Editar 2 videos","videosEditados",2), T("Buscar 2 conversaciones financieras","conversaciones",2) ],
+  // Miércoles
+  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("5 llamadas","llamadas",5), T("Asesorías","asesorias",1), T("Editar 2 videos","videosEditados",2), T("Buscar 2 conversaciones financieras","conversaciones",2) ],
+  // Jueves
+  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("5 llamadas","llamadas",5), T("Asesorías","asesorias",1), T("Publicar 1 video","videosPublicados",1), S("Enviar todas las propuestas pendientes"), T("Editar 1 video","videosEditados",1), T("Buscar 2 conversaciones financieras","conversaciones",2) ],
+  // Viernes
+  [ T("5 prospectos nuevos","prospectos",5), T("5 seguimientos","seguimientos",5), T("Pedir 3 referidos","referidos",3), S("Revisar pendientes"), S("Dejar listos y programados los videos de la siguiente semana"), S("Publicar historias"), T("Buscar 2 conversaciones financieras","conversaciones",2) ],
+  // Sábado
+  [ T("Asesorías","asesorias",1), S("Prospectar si surge la oportunidad"), T("Buscar 1 conversación financiera","conversaciones",1) ],
+  // Domingo
+  [ S("Revisar métricas"), S("Planear la siguiente semana"), S("Organizar agenda"), S("Programar publicaciones"), S("Registrar actividades") ]
 ];
 
 function slugify(s){
@@ -350,6 +385,50 @@ function slugify(s){
     .replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
 }
 const WEEKDAY_TASKS = WEEKDAY_TASKS_RAW.map(list => list.map(t => Object.assign({key:slugify(t.label)}, t)));
+
+// Criterios de qué cuenta y qué no cuenta para cada actividad — se muestran
+// en Metas > Criterios como referencia rápida.
+const CRITERIA = [
+  {
+    title: "Prospecto nuevo",
+    counts: [
+      "Conseguiste un contacto nuevo.",
+      "Iniciaste conversación con alguien nuevo.",
+      "Agendaste una llamada inicial.",
+      "Recuperaste un contacto viejo que llevaba meses sin hablar."
+    ],
+    doesntCount: [
+      "Le diste follow.",
+      "Reaccionaste una historia.",
+      "Solo aceptó tu solicitud."
+    ]
+  },
+  {
+    title: "Seguimiento",
+    counts: [
+      "Preguntaste si revisó la información.",
+      "Confirmaste una cita.",
+      "Diste seguimiento a una propuesta.",
+      "Respondiste dudas importantes.",
+      "Volviste a contactar a alguien que ya conocías."
+    ],
+    doesntCount: [
+      "Solo reaccionaste un mensaje.",
+      "Mandaste un sticker.",
+      "Contestaste \"gracias\".",
+      "Platicaste de cualquier otra cosa sin avanzar el proceso."
+    ]
+  }
+];
+
+// Compromisos semanales cualitativos (no numéricos) — se palomean una vez
+// por semana desde la pestaña Metas y se guardan por semana (lunes de esa semana).
+const WEEK_COMMITMENTS = [
+  {key:"historias",          label:"Historias publicadas lunes y viernes"},
+  {key:"videosProgramados",  label:"Videos de la siguiente semana completamente programados"},
+  {key:"propuestas24h",      label:"Todas las propuestas enviadas en menos de 24 horas"},
+  {key:"agendaConfirmada",   label:"Agenda de la siguiente semana confirmada antes del domingo"}
+];
 
 const MOTIVATION = {
   0:  ["No esperes vender. Espera sembrar.", "Hoy todavía puedes acercarte a tu meta.", "El primer paso siempre cuesta más. Da uno solo."],
@@ -689,6 +768,73 @@ async function renderMetas(){
       '<div class="bar-track"><div class="bar-fill'+(complete?" complete":"")+'" style="width:'+pct+'%"></div></div>';
     wrap.appendChild(div);
   });
+  await renderCommitments(monday);
+}
+
+function renderCriteriaPanel(){
+  const panel = document.getElementById("criteriaPanel");
+  panel.innerHTML = "";
+  CRITERIA.forEach(c=>{
+    const block = document.createElement("div");
+    block.className = "criteria-block";
+    block.innerHTML =
+      '<div class="criteria-title">'+escapeHtml(c.title)+'</div>'+
+      '<div class="criteria-col-label yes">Cuenta si</div>'+
+      '<ul class="criteria-list">'+c.counts.map(x=>'<li>'+escapeHtml(x)+'</li>').join("")+'</ul>'+
+      '<div class="criteria-col-label no">No cuenta si</div>'+
+      '<ul class="criteria-list">'+c.doesntCount.map(x=>'<li>'+escapeHtml(x)+'</li>').join("")+'</ul>';
+    panel.appendChild(block);
+  });
+}
+document.getElementById("criteriaToggle").addEventListener("click", ()=>{
+  const panel = document.getElementById("criteriaPanel");
+  const showing = panel.style.display !== "none";
+  if(showing){ panel.style.display = "none"; }
+  else{ renderCriteriaPanel(); panel.style.display = ""; }
+});
+
+/* ---- Compromisos semanales (cualitativos, no numéricos) ---- */
+async function loadWeekFlags(monday){
+  const key = "weekflags:"+toDateStr(monday);
+  const flags = await sGet(key);
+  const base = {}; WEEK_COMMITMENTS.forEach(c=>base[c.key]=false);
+  return flags ? Object.assign(base, flags) : base;
+}
+let weekFlagsCache = null, weekFlagsMonday = null;
+let weekFlagsSaveTimer = null;
+function scheduleWeekFlagsSave(monday, flags){
+  clearTimeout(weekFlagsSaveTimer);
+  weekFlagsSaveTimer = setTimeout(()=>{ sSet("weekflags:"+toDateStr(monday), flags); }, 400);
+}
+async function renderCommitments(monday){
+  if(!weekFlagsCache || weekFlagsMonday !== toDateStr(monday)){
+    weekFlagsCache = await loadWeekFlags(monday);
+    weekFlagsMonday = toDateStr(monday);
+  }
+  const flags = weekFlagsCache;
+  const wrap = document.getElementById("commitmentsList");
+  wrap.innerHTML = "";
+  WEEK_COMMITMENTS.forEach(c=>{
+    const row = document.createElement("div");
+    row.className = "commitment-row"+(flags[c.key]?" done":"");
+    row.innerHTML =
+      '<div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'+
+      '<div class="commitment-text">'+escapeHtml(c.label)+'</div>';
+    row.addEventListener("click", ()=>{
+      flags[c.key] = !flags[c.key];
+      row.classList.toggle("done", flags[c.key]);
+      renderCommitmentCheckboxState(row, flags[c.key]);
+      scheduleWeekFlagsSave(monday, flags);
+    });
+    wrap.appendChild(row);
+    renderCommitmentCheckboxState(row, flags[c.key]);
+  });
+}
+function renderCommitmentCheckboxState(row, done){
+  const box = row.querySelector(".checkbox");
+  box.style.background = done ? "var(--good)" : "";
+  box.style.borderColor = done ? "var(--good)" : "";
+  box.querySelector("svg").style.opacity = done ? "1" : "0";
 }
 
 let dashboardMetric = METRICS[0].key;
